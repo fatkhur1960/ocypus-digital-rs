@@ -22,8 +22,8 @@ This program connects to an Ocypus Iota L24 digital display device via USB HID i
 ### Build from source
 
 ```bash
-git clone <repository-url>
-cd ocypus-l24-digital
+git clone https://github.com/fatkhur1960/ocypus-digital-rs.git
+cd ocypus-digital-rs
 cargo build --release
 ```
 
