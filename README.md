@@ -7,12 +7,12 @@ A Rust application that monitors system temperature and displays it on an Ocypus
 This program connects to an Ocypus Iota L24 digital display device via USB HID interface and continuously monitors system temperature, displaying the current temperature on the device. The application features:
 
 - Automatic device detection and connection (VID: 0x1a2c, PID: 0x434d)
-- Configurable temperature units (Celsius/Fahrenheit)
-- Configurable monitoring interval
-- Temperature threshold alerts
+- Configurable temperature units (Celsius/Fahrenheit) via CLI
+- Configurable monitoring interval via CLI
+- Temperature threshold alerts via CLI
 - Automatic device reconnection on disconnection
 - Comprehensive logging with multiple verbosity levels
-- Configuration file support (TOML format)
+- Command-line interface for all configuration options
 - Multiple temperature sensor support
 - Unit tests for core functionality
 - Systemd service integration
@@ -57,10 +57,8 @@ sudo systemctl enable ocypus-digital.service
 The project uses the following Rust crates:
 - `hidapi` v2.6.3 - USB HID device communication
 - `systemstat` v0.2.5 - System statistics and temperature monitoring
-- `serde` & `serde_json` - Configuration file parsing
 - `log` & `env_logger` - Structured logging
 - `clap` - Command line argument parsing
-- `toml` - TOML configuration file support
 
 ## Usage
 
@@ -70,39 +68,39 @@ The project uses the following Rust crates:
 # Run with default settings
 ocypus-l24-digital
 
-# Specify configuration file
-ocypus-l24-digital --config /path/to/config.toml
+# Set temperature unit
+ocypus-l24-digital --unit f
+
+# Set update interval
+ocypus-l24-digital --interval 2
+
+# Enable temperature alerts
+ocypus-l24-digital --alerts --high-threshold 75.0 --low-threshold 25.0
+
+# Set sensor type
+ocypus-l24-digital --sensor cpu
 
 # Set log level
 ocypus-l24-digital --log-level debug
 
 # Show help
 ocypus-l24-digital --help
+
+# Example with all options
+ocypus-l24-digital --unit f --interval 2 --alerts --high-threshold 85.0 --low-threshold 15.0 --sensor cpu --log-level info
 ```
 
-### Configuration
+### Configuration Options
 
-The application uses a TOML configuration file. Default location: `/etc/ocypus-digital/config.toml`
+All configuration is done via command-line arguments:
 
-```toml
-# Temperature unit: 'c' for Celsius, 'f' for Fahrenheit
-unit = 'c'
-
-# Temperature update interval in seconds
-interval = 1
-
-# High temperature threshold for alerts (°C)
-high_threshold = 80.0
-
-# Low temperature threshold for alerts (°C)
-low_threshold = 20.0
-
-# Enable temperature threshold alerts
-alerts = false
-
-# Temperature sensor to use ('cpu', 'system')
-sensor = 'cpu'
-```
+- `--unit, -u`: Temperature unit ('c' for Celsius, 'f' for Fahrenheit) [default: c]
+- `--interval, -i`: Temperature update interval in seconds [default: 1]
+- `--high-threshold`: High temperature threshold for alerts (°C) [default: 80.0]
+- `--low-threshold`: Low temperature threshold for alerts (°C) [default: 20.0]
+- `--alerts`: Enable temperature threshold alerts
+- `--sensor, -s`: Temperature sensor to use ('cpu', 'system') [default: cpu]
+- `--log-level, -l`: Log level (trace, debug, info, warn, error) [default: info]
 
 ### Systemd Service
 
@@ -161,7 +159,7 @@ cargo test
 Tests include:
 - Temperature report building
 - Unit conversion
-- Configuration parsing
+- Configuration defaults
 - Temperature clamping
 
 ## Contributing

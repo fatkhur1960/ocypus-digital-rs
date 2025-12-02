@@ -43,51 +43,18 @@ fi
 
 # Build the application
 print_status "Building the application..."
-cargo build --release
+cargo build --release -j$(nproc)
 
 # Install the binary
 print_status "Installing binary to /usr/local/bin..."
 sudo cp target/release/ocypus-l24-digital /usr/local/bin/
 sudo chmod 755 /usr/local/bin/ocypus-l24-digital
 
-# Create config directory
-print_status "Creating config directory..."
-sudo mkdir -p /etc/ocypus-digital
-
-# Copy default config if it doesn't exist
-if [[ ! -f /etc/ocypus-digital/config.toml ]]; then
-    print_status "Installing default configuration..."
-    sudo tee /etc/ocypus-digital/config.toml > /dev/null <<EOF
-# Ocypus L24 Digital Configuration File
-
-# Temperature unit: 'c' for Celsius, 'f' for Fahrenheit
-unit = 'c'
-
-# Temperature update interval in seconds
-interval = 1
-
-# High temperature threshold for alerts (°C)
-high_threshold = 80.0
-
-# Low temperature threshold for alerts (°C)
-low_threshold = 20.0
-
-# Enable temperature threshold alerts
-alerts = false
-
-# Temperature sensor to use ('cpu', 'gpu', 'system')
-sensor = 'cpu'
-EOF
-else
-    print_warning "Configuration file already exists at /etc/ocypus-digital/config.toml"
-fi
+# Note: Configuration is now done via CLI arguments in the systemd service file
 
 # Install systemd service
 print_status "Installing systemd service..."
 sudo cp ocypus-digital.service /etc/systemd/system/
-
-# Update service file to use correct paths
-sudo sed -i 's|ExecStart=/usr/local/bin/ocypus-l24-digital|ExecStart=/usr/local/bin/ocypus-l24-digital --config /etc/ocypus-digital/config.toml|' /etc/systemd/system/ocypus-digital.service
 
 # Reload systemd and enable service
 print_status "Setting up systemd service..."
@@ -108,12 +75,15 @@ sudo udevadm trigger
 print_status "Installation completed successfully!"
 print_status ""
 print_status "Next steps:"
-print_status "1. Edit configuration: sudo nano /etc/ocypus-digital/config.toml"
+print_status "1. Edit service configuration: sudo nano /etc/systemd/system/ocypus-digital.service"
 print_status "2. Start the service: sudo systemctl start ocypus-digital.service"
 print_status "3. Check status: sudo systemctl status ocypus-digital.service"
 print_status "4. View logs: sudo journalctl -u ocypus-digital.service -f"
 print_status ""
 print_status "The service will automatically start on boot."
+print_status ""
+print_status "To modify service settings, edit the ExecStart line in the service file"
+print_status "and then run: sudo systemctl daemon-reload && sudo systemctl restart ocypus-digital.service"
 
 # Ask if user wants to start the service now
 read -p "Do you want to start the service now? (y/N): " -n 1 -r

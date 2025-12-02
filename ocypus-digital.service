@@ -5,7 +5,7 @@ After=multi-user.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/ocypus-l24-digital
+ExecStart=/usr/local/bin/ocypus-l24-digital --unit c --interval 1 --sensor cpu --log-level info
 Restart=always
 RestartSec=5
 WorkingDirectory=/usr/local/bin
