@@ -70,7 +70,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## What to do next
 
-- [ ] Create LICENSE file
+- [x] Create LICENSE file
 - [ ] Add error handling for device disconnection
 - [ ] Implement Fahrenheit temperature display option
 - [ ] Add configuration file support for device settings
