@@ -71,10 +71,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## What to do next
 
 - [x] Create LICENSE file
+- [x] Create systemd service file for auto-start
 - [ ] Add error handling for device disconnection
 - [ ] Implement Fahrenheit temperature display option
 - [ ] Add configuration file support for device settings
-- [ ] Create systemd service file for auto-start
 - [ ] Add logging with different verbosity levels
 - [ ] Implement temperature threshold alerts
 - [ ] Add support for other temperature sensors
