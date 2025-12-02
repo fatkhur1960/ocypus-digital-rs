@@ -1,0 +1,8 @@
+[package]
+name = "ocypus-l24-digital"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hidapi = { version = "2.6.3" }
+systemstat = "0.2.5"
