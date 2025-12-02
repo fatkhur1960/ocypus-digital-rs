@@ -1,0 +1,14 @@
+[Unit]
+Description=Ocypus L24 Digital Temperature Monitor
+After=multi-user.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ocypus-l24-digital
+Restart=always
+RestartSec=5
+WorkingDirectory=/usr/local/bin
+
+[Install]
+WantedBy=multi-user.target
