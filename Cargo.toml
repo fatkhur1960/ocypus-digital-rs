@@ -1,11 +1,39 @@
 [package]
 name = "ocypus-l24-digital"
 version = "0.2.0"
-edition = "2024"
+edition = "2021"
+authors = ["Ocypus Digital Team"]
+description = "Temperature monitoring utility for Ocypus Iota L24 display"
+license = "MIT"
+repository = "https://github.com/ocypus/ocypus-digital-rs"
+keywords = ["temperature", "monitoring", "hardware", "ocypus"]
+categories = ["hardware-support"]
 
 [dependencies]
-hidapi = { version = "2.6.4" }
+# CLI and argument parsing
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Logging
 log = "0.4.29"
 env_logger = "0.11"
-clap = { version = "4.5", features = ["derive"] }
+
+# Hardware communication
+hidapi = { version = "2.6.4" }
+
+# System monitoring
 regex = "1.12.2"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async runtime (optional, for future enhancements)
+tokio = { version = "1.0", features = ["full"], optional = true }
+
+[dev-dependencies]
+tempfile = "3.0"
+test-log = "0.2"
+
+[features]
+default = []
+async = ["tokio"]
