@@ -41,7 +41,7 @@ struct Args {
     #[arg(long)]
     alerts: bool,
 
-    /// Temperature sensor to use ('cpu', 'system')
+    /// Temperature sensor to use ('cpu', 'gpu')
     #[arg(short, long, default_value = "cpu")]
     sensor: String,
 
@@ -67,7 +67,7 @@ struct Config {
     /// Enable temperature threshold alerts
     alerts: bool,
 
-    /// Temperature sensor to use ('cpu', 'gpu', 'system')
+    /// Temperature sensor to use ('cpu', 'gpu')
     sensor: String,
 }
 
@@ -92,6 +92,16 @@ fn create_config_from_args(args: &Args) -> Config {
         low_threshold: args.low_threshold,
         alerts: args.alerts,
         sensor: args.sensor.clone(),
+    }
+}
+
+fn validate_sensor_type(sensor: &str) -> Result<(), String> {
+    match sensor {
+        "cpu" | "gpu" => Ok(()),
+        _ => Err(format!(
+            "Unsupported sensor type: '{}'. Supported types: cpu, gpu",
+            sensor
+        )),
     }
 }
 
@@ -226,6 +236,12 @@ fn main() {
         })
         .init();
 
+    // Validate sensor type before proceeding
+    if let Err(e) = validate_sensor_type(&args.sensor) {
+        error!("{}", e);
+        process::exit(1);
+    }
+
     // Create configuration from CLI arguments
     let config = create_config_from_args(&args);
     info!("ocypus-digital v{}", env!("CARGO_PKG_VERSION"));
@@ -356,5 +372,13 @@ mod tests {
         assert_eq!(config.low_threshold, 20.0);
         assert!(!config.alerts);
         assert_eq!(config.sensor, "cpu");
+    }
+
+    #[test]
+    fn test_validate_sensor_type() {
+        assert!(validate_sensor_type("cpu").is_ok());
+        assert!(validate_sensor_type("gpu").is_ok());
+        assert!(validate_sensor_type("invalid").is_err());
+        assert!(validate_sensor_type("system").is_err());
     }
 }
