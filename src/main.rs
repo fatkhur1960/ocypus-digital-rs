@@ -1,11 +1,17 @@
 extern crate hidapi;
-extern crate systemstat;
 
-use std::{sync::mpsc, thread, time::Duration, process};
-use hidapi::HidApi;
-use systemstat::{Platform, System};
-use log::{info, warn, error, debug};
 use clap::Parser;
+use hidapi::HidApi;
+use log::{debug, error, info, warn};
+use std::{
+    process::{self},
+    sync::mpsc,
+    thread,
+    time::Duration,
+};
+
+mod cpu_sensor;
+mod gpu_sensor;
 
 const VID: u16 = 0x1a2c;
 const PID: u16 = 0x434d;
@@ -18,27 +24,27 @@ struct Args {
     /// Temperature unit: 'c' for Celsius, 'f' for Fahrenheit
     #[arg(short, long, default_value = "c")]
     unit: char,
-    
+
     /// Temperature update interval in seconds
     #[arg(short, long, default_value = "1")]
     interval: u64,
-    
+
     /// High temperature threshold for alerts (°C)
     #[arg(long, default_value = "80.0")]
     high_threshold: f32,
-    
+
     /// Low temperature threshold for alerts (°C)
     #[arg(long, default_value = "20.0")]
     low_threshold: f32,
-    
+
     /// Enable temperature threshold alerts
     #[arg(long)]
     alerts: bool,
-    
+
     /// Temperature sensor to use ('cpu', 'system')
     #[arg(short, long, default_value = "cpu")]
     sensor: String,
-    
+
     /// Log level (trace, debug, info, warn, error)
     #[arg(short, long, default_value = "info")]
     log_level: String,
@@ -48,39 +54,32 @@ struct Args {
 struct Config {
     /// Temperature unit: 'c' for Celsius, 'f' for Fahrenheit
     unit: char,
-    
+
     /// Temperature update interval in seconds
     interval: u64,
-    
+
     /// High temperature threshold for alerts
     high_threshold: f32,
-    
+
     /// Low temperature threshold for alerts
     low_threshold: f32,
-    
+
     /// Enable temperature threshold alerts
     alerts: bool,
-    
+
     /// Temperature sensor to use ('cpu', 'gpu', 'system')
     sensor: String,
 }
 
-fn default_unit() -> char { 'c' }
-fn default_interval() -> u64 { 1 }
-fn default_high_threshold() -> f32 { 80.0 }
-fn default_low_threshold() -> f32 { 20.0 }
-fn default_alerts() -> bool { false }
-fn default_sensor() -> String { "cpu".to_string() }
-
 impl Default for Config {
     fn default() -> Self {
         Config {
-            unit: default_unit(),
-            interval: default_interval(),
-            high_threshold: default_high_threshold(),
-            low_threshold: default_low_threshold(),
-            alerts: default_alerts(),
-            sensor: default_sensor(),
+            unit: 'c',
+            interval: 1,
+            high_threshold: 80.0,
+            low_threshold: 20.0,
+            alerts: false,
+            sensor: "cpu".to_string(),
         }
     }
 }
@@ -96,33 +95,28 @@ fn create_config_from_args(args: &Args) -> Config {
     }
 }
 
-fn get_temperature(sys: &System, sensor: &str) -> Option<f32> {
+fn get_temperature(sensor: &str) -> Option<f32> {
     match sensor {
-        "cpu" => {
-            match sys.cpu_temp() {
-                Ok(temp) => {
-                    debug!("CPU temperature: {:.1}°C", temp);
-                    Some(temp)
-                }
-                Err(e) => {
-                    warn!("Failed to get CPU temperature: {}", e);
-                    None
-                }
+        "cpu" => match cpu_sensor::get_cpu_temperature() {
+            Ok(temp) => {
+                debug!("CPU temperature: {:.1}°C", temp);
+                Some(temp)
             }
-        }
-        "system" => {
-            // systemstat doesn't have a generic temp() method, fallback to CPU temp
-            match sys.cpu_temp() {
-                Ok(temp) => {
-                    debug!("System temperature (CPU fallback): {:.1}°C", temp);
-                    Some(temp)
-                }
-                Err(e) => {
-                    warn!("Failed to get system temperature: {}", e);
-                    None
-                }
+            Err(e) => {
+                warn!("Failed to get CPU temperature: {}", e);
+                None
             }
-        }
+        },
+        "gpu" => match gpu_sensor::get_gpu_temperature() {
+            Ok(temp) => {
+                debug!("GPU temperature: {:.1}°C", temp);
+                Some(temp)
+            }
+            Err(e) => {
+                warn!("Failed to get GPU temperature: {}", e);
+                None
+            }
+        },
         _ => {
             warn!("Unknown sensor type: {}", sensor);
             None
@@ -134,13 +128,17 @@ fn check_thresholds(temp: f32, config: &Config) {
     if !config.alerts {
         return;
     }
-    
+
     if temp > config.high_threshold {
-        warn!("High temperature alert: {:.1}°C (threshold: {:.1}°C)", 
-              temp, config.high_threshold);
+        warn!(
+            "High temperature alert: {:.1}°C (threshold: {:.1}°C)",
+            temp, config.high_threshold
+        );
     } else if temp < config.low_threshold {
-        warn!("Low temperature alert: {:.1}°C (threshold: {:.1}°C)", 
-              temp, config.low_threshold);
+        warn!(
+            "Low temperature alert: {:.1}°C (threshold: {:.1}°C)",
+            temp, config.low_threshold
+        );
     }
 }
 
@@ -192,12 +190,12 @@ fn send_temp(dev: &hidapi::HidDevice, temp_celsius: f32, unit: char) -> Result<u
 
 fn connect_device(api: &HidApi) -> Result<hidapi::HidDevice, String> {
     info!("Scanning for Ocypus Iota L24 device...");
-    
+
     for device_info in api.device_list() {
         if device_info.vendor_id() == VID && device_info.product_id() == PID {
             let path = device_info.path().to_string_lossy().into_owned();
             debug!("Found device at: {}", path);
-            
+
             match api.open_path(device_info.path()) {
                 Ok(dev) => {
                     info!("Connected to Ocypus Iota L24 at {}", path);
@@ -209,13 +207,13 @@ fn connect_device(api: &HidApi) -> Result<hidapi::HidDevice, String> {
             }
         }
     }
-    
+
     Err("No Ocypus Iota L24 device found".to_string())
 }
 
 fn main() {
     let args = Args::parse();
-    
+
     // Initialize logging
     env_logger::Builder::from_default_env()
         .filter_level(match args.log_level.as_str() {
@@ -227,17 +225,20 @@ fn main() {
             _ => log::LevelFilter::Info,
         })
         .init();
-    
+
     // Create configuration from CLI arguments
     let config = create_config_from_args(&args);
-    info!("Using temperature unit: {}°", config.unit.to_uppercase());
+    info!("ocypus-digital v{}", env!("CARGO_PKG_VERSION"));
+    info!("Using temperature unit: °{}", config.unit.to_uppercase());
     info!("Update interval: {} seconds", config.interval);
     info!("Using sensor: {}", config.sensor);
     if config.alerts {
-        info!("Temperature alerts enabled (high: {:.1}°C, low: {:.1}°C)", 
-              config.high_threshold, config.low_threshold);
+        info!(
+            "Temperature alerts enabled (high: {:.1}°C, low: {:.1}°C)",
+            config.high_threshold, config.low_threshold
+        );
     }
-    
+
     match HidApi::new() {
         Ok(api) => {
             let mut device = match connect_device(&api) {
@@ -247,28 +248,27 @@ fn main() {
                     process::exit(1);
                 }
             };
-            
+
             info!("Starting temperature monitoring...");
-            
+
             let (tx, rx) = mpsc::channel::<f32>();
-            
+
             // Temperature monitoring thread
             let config_clone = config.clone();
             thread::spawn(move || {
-                let sys = System::new();
                 loop {
-                    if let Some(temp) = get_temperature(&sys, &config_clone.sensor) {
+                    if let Some(temp) = get_temperature(&config_clone.sensor) {
                         check_thresholds(temp, &config_clone);
                         if let Err(e) = tx.send(temp) {
                             error!("Failed to send temperature: {}", e);
                             break;
                         }
                     }
-                    
+
                     thread::sleep(Duration::from_secs(config_clone.interval));
                 }
             });
-            
+
             // Main loop - handle device communication and reconnection
             for temp in rx {
                 match send_temp(&device, temp, config.unit) {
@@ -278,12 +278,16 @@ fn main() {
                         } else {
                             temp
                         };
-                        info!("Temperature: {:.0}°{}", display_temp, config.unit.to_uppercase());
+                        info!(
+                            "Temperature: {:.0}°{}",
+                            display_temp,
+                            config.unit.to_uppercase()
+                        );
                     }
                     Err(e) => {
                         error!("Device communication error: {}", e);
                         info!("Attempting to reconnect...");
-                        
+
                         // Try to reconnect
                         match connect_device(&api) {
                             Ok(new_device) => {
@@ -309,25 +313,25 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_build_report_celsius() {
         let report = build_report(25.5, 'c');
         assert_eq!(report[0], REPORT_ID);
         assert_eq!(report[3], 0); // hundreds
-        assert_eq!(report[4], 2);  // tens
-        assert_eq!(report[5], 5);  // ones
+        assert_eq!(report[4], 2); // tens
+        assert_eq!(report[5], 5); // ones
     }
-    
+
     #[test]
     fn test_build_report_fahrenheit() {
         let report = build_report(25.0, 'f'); // 25°C = 77°F
         assert_eq!(report[0], REPORT_ID);
         assert_eq!(report[3], 0); // hundreds
-        assert_eq!(report[4], 7);  // tens
-        assert_eq!(report[5], 7);  // ones
+        assert_eq!(report[4], 7); // tens
+        assert_eq!(report[5], 7); // ones
     }
-    
+
     #[test]
     fn test_build_report_clamping() {
         // Test negative temperature
@@ -335,14 +339,14 @@ mod tests {
         assert_eq!(report[3], 0);
         assert_eq!(report[4], 0);
         assert_eq!(report[5], 0);
-        
+
         // Test high temperature
         let report = build_report(150.0, 'c');
         assert_eq!(report[3], 0);
         assert_eq!(report[4], 9);
         assert_eq!(report[5], 9);
     }
-    
+
     #[test]
     fn test_config_defaults() {
         let config = Config::default();
