@@ -108,6 +108,8 @@ fn build_temperature_report(
     let temp_int = clamped_temp as u32;
 
     // Extract digits (hundreds, tens, ones)
+    report[1] = 0xff;
+    report[2] = 0xff;
     report[3] = (temp_int / 100) as u8;
     report[4] = ((temp_int / 10) % 10) as u8;
     report[5] = (temp_int % 10) as u8;
