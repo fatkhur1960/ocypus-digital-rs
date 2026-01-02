@@ -2,7 +2,7 @@
 name = "ocypus-l24-digital"
 version = "0.2.0"
 edition = "2021"
-authors = ["Ocypus Digital Team"]
+authors = ["fatkhur <fatkhuranonym@gmail.com>"]
 description = "Temperature monitoring utility for Ocypus Iota L24 display"
 license = "MIT"
 repository = "https://github.com/ocypus/ocypus-digital-rs"
