@@ -24,6 +24,14 @@ This program connects to an Ocypus Iota L24 digital display device via USB HID i
 - Rust 2024 edition or later
 - Linux system with USB HID support
 - Ocypus Iota L24 device
+- `lm-sensors` (optional, recommended for detailed readings):
+  ```bash
+  sudo apt install lm-sensors   # Debian/Ubuntu
+  sudo dnf install lm_sensors   # Fedora
+  ```
+  If `sensors` is not installed, the app automatically falls back to
+  kernel sysfs (`/sys/class/hwmon`, `/sys/class/thermal`), so no
+  `Failed to execute sensors command` error will stop monitoring.
 
 ### Automated Installation
 
@@ -125,7 +133,10 @@ sudo journalctl -u ocypus-digital.service -f
 - **Fahrenheit**: Automatic conversion from Celsius to °F
 
 ### Temperature Sensors
-- **CPU**: Monitors CPU temperature (default)
+- **CPU**: Monitors CPU temperature (default). Lookup order:
+  1. `sensors` command from `lm-sensors` (Intel `Package id 0`, AMD `Tdie`/`Tctl`)
+  2. `/sys/class/hwmon` (coretemp/k10temp, no external dependency)
+  3. `/sys/class/thermal` thermal zones (`x86_pkg_temp`, `acpitz`)
 - **System**: Monitors system temperature sensors
 
 ### Alerts
